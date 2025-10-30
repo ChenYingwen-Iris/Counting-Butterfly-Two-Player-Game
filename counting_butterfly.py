@@ -2,6 +2,7 @@ import pygame
 import sys
 import random
 import time
+import math
 
 # 初始化pygame
 pygame.init()
@@ -10,6 +11,7 @@ pygame.init()
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 480
 FPS = 60
+BUTTERFLY_HEIGHT = 36  # 统一蝴蝶高度（像素），可按需调整
 
 # 颜色定义 - 红蓝撞色
 RED = (255, 50, 50)
@@ -34,6 +36,15 @@ except:
     font_medium = pygame.font.SysFont(None, 32)
     font_small = pygame.font.SysFont(None, 24)
 
+# 加载背景图（可选）
+def load_background_image():
+    try:
+        img = pygame.image.load("background.png").convert()
+        return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+    except Exception:
+        return None
+
+
 # 加载角色精灵图片
 def load_player_sprites():
     sprites = {}
@@ -43,10 +54,9 @@ def load_player_sprites():
         red_walk = pygame.image.load("red_player_walk.png").convert_alpha()
         blue_stand = pygame.image.load("blue_player_stand.png").convert_alpha()
         blue_walk = pygame.image.load("blue_player_walk.png").convert_alpha()
-        
-        width, height = red_stand.get_size()
+
         print(f"加载的精灵尺寸: {red_stand.get_size()}")
-        
+
         def auto_crop_surface(surf: pygame.Surface) -> pygame.Surface:
             """使用像素掩码自动裁剪透明边距，返回裁剪后的Surface。若失败则原样返回。"""
             try:
@@ -54,46 +64,74 @@ def load_player_sprites():
                 rect = mask.get_bounding_rect()
                 if rect.width > 0 and rect.height > 0:
                     return surf.subsurface(rect).copy()
-            except Exception as _:
+            except Exception:
                 pass
             return surf
 
         def extract_and_scale_sprite(sprite, frame_index=0):
             """直接使用整个精灵图片，先自动裁剪透明边距再放大显示"""
-            # 自动裁剪透明边距
             cropped = auto_crop_surface(sprite)
             sprite_width, sprite_height = cropped.get_size()
-            
-            # 设置目标高度（可调）
             target_height = 130
             target_width = max(1, int(sprite_width * target_height / max(1, sprite_height)))
-            
-            # 放大精灵
             scaled = pygame.transform.scale(cropped, (target_width, target_height))
-            print(f"裁剪并缩放: 原始({sprite.get_width()}x{sprite.get_height()}) -> 裁剪({sprite_width}x{sprite_height}) -> 缩放({target_width}x{target_height})")
+            print(
+                f"裁剪并缩放: 原始({sprite.get_width()}x{sprite.get_height()}) -> 裁剪({sprite_width}x{sprite_height}) -> 缩放({target_width}x{target_height})"
+            )
             return scaled
-        
+
         # 提取红色角色 - 使用整个图片
         sprites['red_stand'] = extract_and_scale_sprite(red_stand, 0)
         sprites['red_walk1'] = extract_and_scale_sprite(red_walk, 0)
         sprites['red_walk2'] = extract_and_scale_sprite(red_walk, 0)
         sprites['red_walk3'] = extract_and_scale_sprite(red_walk, 0)
-        
+
         # 提取蓝色角色 - 使用整个图片
         sprites['blue_stand'] = extract_and_scale_sprite(blue_stand, 0)
         sprites['blue_walk1'] = extract_and_scale_sprite(blue_walk, 0)
         sprites['blue_walk2'] = extract_and_scale_sprite(blue_walk, 0)
         sprites['blue_walk3'] = extract_and_scale_sprite(blue_walk, 0)
-        
+
         print("✓ 成功加载所有角色精灵!")
-        
     except Exception as e:
         print(f"✗ 加载精灵文件失败: {e}")
         print("将使用后备绘制方法")
-        
     return sprites
 
+background_image = load_background_image()
 player_sprites = load_player_sprites()
+
+
+# 加载蝴蝶图片（两种样式，可选）
+def load_butterfly_images():
+    bases = []
+    try:
+        def auto_crop_surface(surf: pygame.Surface) -> pygame.Surface:
+            try:
+                mask = pygame.mask.from_surface(surf)
+                rect = mask.get_bounding_rect()
+                if rect.width > 0 and rect.height > 0:
+                    return surf.subsurface(rect).copy()
+            except Exception:
+                pass
+            return surf
+
+        for name in ["butterfly1.png", "butterfly2.png"]:
+            try:
+                s = pygame.image.load(name).convert_alpha()
+                s = auto_crop_surface(s)
+                bases.append(s)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    if len(bases) == 0:
+        print("✗ 未找到蝴蝶图片，将使用后备绘制")
+    else:
+        print(f"✓ 加载蝴蝶图片 {len(bases)} 个: {[b.get_size() for b in bases]}")
+    return bases
+
+butterfly_bases = load_butterfly_images()
 
 # 游戏状态
 class GameState:
@@ -108,25 +146,46 @@ class Butterfly:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.size = random.randint(20, 40)
-        self.color = (random.randint(200, 255), random.randint(100, 200), random.randint(100, 200))
+
+        # 统一大小
+        self.size = BUTTERFLY_HEIGHT
+        self.color = (
+            random.randint(200, 255),
+            random.randint(100, 200),
+            random.randint(100, 200),
+        )
         self.lifetime = random.uniform(1.2, 2.0)  # 蝴蝶显示时间（调整到1.2-2秒）
         self.spawn_time = time.time()
-        self.wing_phase = random.uniform(0, 3.14)  # 翅膀动画相位
+        self.wing_phase = random.uniform(0, 3.14)  # 翅膀/起伏相位
+
+        # 若有素材图，预先按大小缩放一份，减少每帧开销
+        self.sprite = None
+        self.style_index = None
+        if butterfly_bases:
+            self.style_index = random.randint(0, len(butterfly_bases) - 1)
+            base = butterfly_bases[self.style_index]
+            # 按统一高度等比缩放
+            h = max(8, int(BUTTERFLY_HEIGHT))
+            w = max(8, int(base.get_width() * h / max(1, base.get_height())))
+            self.sprite = pygame.transform.smoothscale(base, (w, h))
         
     def update(self):
-        # 翅膀扇动效果
+        # 起伏/扇动效果（不依赖素材，可共用）
         self.wing_phase += 0.3
         return time.time() - self.spawn_time > self.lifetime
-    
+
     def draw(self, surface):
-        # 绘制简单的像素风蝴蝶
+        if self.sprite is not None:
+            # 垂直轻微起伏，模拟飞舞
+            bob = int(3 * math.sin(self.wing_phase))
+            sx = self.x - self.sprite.get_width() // 2
+            sy = self.y - self.sprite.get_height() // 2 + bob
+            surface.blit(self.sprite, (sx, sy))
+            return
+
+        # 后备：绘制像素风蝴蝶
         wing_offset = int(5 * abs(pygame.math.Vector2(1, 0).rotate(self.wing_phase * 30).x))
-        
-        # 蝴蝶身体
         pygame.draw.rect(surface, (50, 50, 50), (self.x, self.y, 4, 10))
-        
-        # 蝴蝶翅膀
         pygame.draw.ellipse(surface, self.color, (self.x - 8 - wing_offset, self.y - 5, 10, 8))
         pygame.draw.ellipse(surface, self.color, (self.x + 2 + wing_offset, self.y - 5, 10, 8))
         pygame.draw.ellipse(surface, self.color, (self.x - 6 - wing_offset, self.y + 2, 8, 6))
@@ -360,7 +419,10 @@ class ButterflyGame:
                 self.state = GameState.GAME_OVER
                 
     def draw_start_screen(self):
-        screen.fill(BACKGROUND)
+        if background_image:
+            screen.blit(background_image, (0, 0))
+        else:
+            screen.fill(BACKGROUND)
         
         # 游戏标题
         title = font_large.render("Counting Butterfly!", True, BLACK)
@@ -392,7 +454,10 @@ class ButterflyGame:
             screen.blit(text, (SCREEN_WIDTH//2 - text.get_width()//2, 200 + i*25))
             
     def draw_gameplay(self):
-        screen.fill(BACKGROUND)
+        if background_image:
+            screen.blit(background_image, (0, 0))
+        else:
+            screen.fill(BACKGROUND)
         
         # 绘制关卡信息
         level_text = font_medium.render(f"Level {self.level}", True, BLACK)
@@ -409,7 +474,10 @@ class ButterflyGame:
         self.player2.draw(screen, SCREEN_HEIGHT - 60)
         
     def draw_input_phase(self):
-        screen.fill(BACKGROUND)
+        if background_image:
+            screen.blit(background_image, (0, 0))
+        else:
+            screen.fill(BACKGROUND)
         
         # 绘制计时器
         timer_text = font_medium.render(f"Time: {int(self.input_timer)}", True, BLACK)
@@ -441,7 +509,10 @@ class ButterflyGame:
         self.player2.draw(screen, SCREEN_HEIGHT - 60)
         
     def draw_result_screen(self):
-        screen.fill(BACKGROUND)
+        if background_image:
+            screen.blit(background_image, (0, 0))
+        else:
+            screen.fill(BACKGROUND)
         
         # 显示正确答案
         answer_text = font_medium.render(f"Correct answer: {self.correct_answer}", True, BLACK)
@@ -468,7 +539,10 @@ class ButterflyGame:
             screen.blit(next_text, (SCREEN_WIDTH//2 - next_text.get_width()//2, 350))
         
     def draw_game_over(self):
-        screen.fill(BACKGROUND)
+        if background_image:
+            screen.blit(background_image, (0, 0))
+        else:
+            screen.fill(BACKGROUND)
         
         # 显示最终得分
         title = font_large.render("Game Over!", True, BLACK)
