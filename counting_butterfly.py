@@ -465,7 +465,7 @@ class Player:
                 print(f"Sprite drawing error: {e}")
         
         # If sprite loading fails, use fallback method
-        self.draw_fallback(surface, self.y)
+        self.draw_fallback(surface, y)
     
     def draw_fallback(self, surface, y):
         # Enhanced fallback drawing - larger more visible character
