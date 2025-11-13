@@ -41,9 +41,9 @@ clock = pygame.time.Clock()
 
 # Load font - Use Press Start 2P pixel font
 try:
-    font_large = pygame.font.Font("PressStart2P-Regular.ttf", 32)  # Pixel font recommended to use smaller sizes
-    font_medium = pygame.font.Font("PressStart2P-Regular.ttf", 20)
-    font_small = pygame.font.Font("PressStart2P-Regular.ttf", 14)
+    font_large = pygame.font.Font("assets/fonts/PressStart2P-Regular.ttf", 32)  # Pixel font recommended to use smaller sizes
+    font_medium = pygame.font.Font("assets/fonts/PressStart2P-Regular.ttf", 20)
+    font_small = pygame.font.Font("assets/fonts/PressStart2P-Regular.ttf", 14)
     print("✓ Successfully loaded Press Start 2P font!")
 except:
     # If font loading fails, try using system font
@@ -61,7 +61,7 @@ except:
 # Load background image (optional)
 def load_background_image():
     try:
-        img = pygame.image.load("background1.png").convert()
+        img = pygame.image.load("assets/images/background1.png").convert()
         return pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
     except Exception:
         return None
@@ -80,10 +80,10 @@ def load_sounds():
     
     try:
         # Try to load background music (electronic style)
-        if os.path.exists("bgm.mp3") or os.path.exists("bgm.ogg") or os.path.exists("bgm.wav"):
+        if os.path.exists("assets/audio/bgm.mp3") or os.path.exists("assets/audio/bgm.ogg") or os.path.exists("assets/audio/bgm.wav"):
             for ext in ['mp3', 'ogg', 'wav']:
-                if os.path.exists(f"bgm.{ext}"):
-                    pygame.mixer.music.load(f"bgm.{ext}")
+                if os.path.exists(f"assets/audio/bgm.{ext}"):
+                    pygame.mixer.music.load(f"assets/audio/bgm.{ext}")
                     pygame.mixer.music.set_volume(0.5)
                     print(f"✓ Successfully loaded background music: bgm.{ext}")
                     sounds['bgm'] = True
@@ -96,8 +96,8 @@ def load_sounds():
     try:
         # Try to load countdown sound effect
         for ext in ['wav', 'ogg', 'mp3']:
-            if os.path.exists(f"countdown.{ext}"):
-                sounds['countdown'] = pygame.mixer.Sound(f"countdown.{ext}")
+            if os.path.exists(f"assets/audio/countdown.{ext}"):
+                sounds['countdown'] = pygame.mixer.Sound(f"assets/audio/countdown.{ext}")
                 sounds['countdown'].set_volume(0.7)
                 print(f"✓ Successfully loaded countdown sound: countdown.{ext}")
                 break
@@ -109,8 +109,8 @@ def load_sounds():
     try:
         # Try to load start sound effect
         for ext in ['wav', 'ogg', 'mp3']:
-            if os.path.exists(f"start.{ext}"):
-                sounds['start'] = pygame.mixer.Sound(f"start.{ext}")
+            if os.path.exists(f"assets/audio/start.{ext}"):
+                sounds['start'] = pygame.mixer.Sound(f"assets/audio/start.{ext}")
                 sounds['start'].set_volume(0.8)
                 print(f"✓ Successfully loaded start sound: start.{ext}")
                 break
@@ -122,8 +122,8 @@ def load_sounds():
     try:
         # Try to load keypress sound effect
         for ext in ['wav', 'ogg', 'mp3']:
-            if os.path.exists(f"beep.{ext}"):
-                sounds['beep'] = pygame.mixer.Sound(f"beep.{ext}")
+            if os.path.exists(f"assets/audio/beep.{ext}"):
+                sounds['beep'] = pygame.mixer.Sound(f"assets/audio/beep.{ext}")
                 sounds['beep'].set_volume(0.4)
                 print(f"✓ Successfully loaded keypress sound: beep.{ext}")
                 break
@@ -133,8 +133,8 @@ def load_sounds():
     try:
         # Try to load success sound effect
         for ext in ['wav', 'ogg', 'mp3']:
-            if os.path.exists(f"success.{ext}"):
-                sounds['success'] = pygame.mixer.Sound(f"success.{ext}")
+            if os.path.exists(f"assets/audio/success.{ext}"):
+                sounds['success'] = pygame.mixer.Sound(f"assets/audio/success.{ext}")
                 sounds['success'].set_volume(0.6)
                 print(f"✓ Successfully loaded success sound: success.{ext}")
                 break
@@ -144,8 +144,8 @@ def load_sounds():
     try:
         # Try to load error sound effect
         for ext in ['wav', 'ogg', 'mp3']:
-            if os.path.exists(f"wrong.{ext}"):
-                sounds['wrong'] = pygame.mixer.Sound(f"wrong.{ext}")
+            if os.path.exists(f"assets/audio/wrong.{ext}"):
+                sounds['wrong'] = pygame.mixer.Sound(f"assets/audio/wrong.{ext}")
                 sounds['wrong'].set_volume(0.5)
                 print(f"✓ Successfully loaded error sound: wrong.{ext}")
                 break
@@ -269,10 +269,10 @@ def load_player_sprites():
     sprites = {}
     try:
         # Load sprite file (preserve alpha channel)
-        red_stand = pygame.image.load("red_player_stand.png").convert_alpha()
-        red_walk = pygame.image.load("red_player_walk.png").convert_alpha()
-        blue_stand = pygame.image.load("blue_player_stand.png").convert_alpha()
-        blue_walk = pygame.image.load("blue_player_walk.png").convert_alpha()
+        red_stand = pygame.image.load("assets/images/red_player_stand.png").convert_alpha()
+        red_walk = pygame.image.load("assets/images/red_player_walk.png").convert_alpha()
+        blue_stand = pygame.image.load("assets/images/blue_player_stand.png").convert_alpha()
+        blue_walk = pygame.image.load("assets/images/blue_player_walk.png").convert_alpha()
 
         print(f"Loaded sprite size: {red_stand.get_size()}")
 
@@ -337,7 +337,7 @@ def load_butterfly_images():
             return surf
 
         # Load blue and red butterfly images
-        for name in ["butterfly_blue.png", "butterfly_red.png"]:
+        for name in ["assets/images/butterfly_blue.png", "assets/images/butterfly_red.png"]:
             try:
                 s = pygame.image.load(name).convert()
                 arr = pygame.surfarray.pixels3d(s)
@@ -387,6 +387,7 @@ def load_butterfly_images():
 class Player:
     def __init__(self, x, color, controls):
         self.x = x
+        self.y = 0  # Initialize y position
         self.color = color
         self.score = 0
         self.input_value = 0
